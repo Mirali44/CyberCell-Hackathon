@@ -1,0 +1,21 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json (if exists)
+COPY ./src/frontend/package.json .
+COPY ./src/frontend/package-lock.json* .
+
+# Set npm registry and install dependencies
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm cache clean --force && \
+    npm install
+
+# Copy the rest of the application
+COPY ./src/frontend .
+
+# Expose port
+EXPOSE 3000
+
+# Command is specified in docker-compose.yml
+CMD ["npm", "start"]

@@ -1,0 +1,32 @@
+FROM node:18-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    curl \
+    python3 \
+    make \
+    g++
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY ./src/api/package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application code
+COPY ./src/api .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/logs /app/uploads
+
+# Expose port
+EXPOSE 8000
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Development command (overridden in docker-compose)
+CMD ["npm", "run", "start:dev"]
