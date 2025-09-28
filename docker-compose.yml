@@ -1,20 +1,28 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15
     container_name: cybercell-postgres
     env_file:
       - ./.env
+    environment:
+      - PGPASSWORD=hackathon2024
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./config/init-db:/docker-entrypoint-initdb.d
+      - ./config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: >
+      -c hba_file=/etc/postgresql/pg_hba.conf
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
     networks:
       - cybercell-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cybercell_user -d cybercell"]
+      test: ["CMD-SHELL", "PGPASSWORD=$PGPASSWORD pg_isready -U cybercell_user -d cybercell"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,18 +32,41 @@ services:
     container_name: cybercell-timescale
     env_file:
       - ./.env
+    environment:
+      - PGPASSWORD=hackathon2024
     ports:
       - "5433:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
       - ./config/timescale-init:/docker-entrypoint-initdb.d
+      - ./config/pg_hba.conf:/etc/postgresql/pg_hba.conf
+    command: >
+      -c hba_file=/etc/postgresql/pg_hba.conf
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=128MB
+      -c timescaledb.max_background_workers=16
+      -c max_parallel_workers=8
+      -c max_parallel_maintenance_workers=4
+      -c shared_preload_libraries=timescaledb
+      -c timescaledb.restoring=off
     networks:
       - cybercell-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U timescale_user -d timescale_cybercell"]
+      test: ["CMD-SHELL", "PGPASSWORD=$PGPASSWORD pg_isready -U cybercell_user -d timescale_cybercell"]
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
 
   redis:
     image: redis:7-alpine
@@ -79,7 +110,7 @@ services:
       dockerfile: Dockerfile.api
     container_name: cybercell-api
     ports:
-      - "8000:8000"  # Changed from 3001:3001
+      - "8000:8000"
     volumes:
       - ./src/api:/app
       - ./data:/app/data
@@ -161,6 +192,7 @@ services:
 volumes:
   postgres_data:
   timescale_data:
+    name: cybercell-hackathon_timescale_data
   redis_data:
   grafana_data:
   frontend_node_modules:
