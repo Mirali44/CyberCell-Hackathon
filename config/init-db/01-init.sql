@@ -475,6 +475,9 @@ CREATE TABLE ml_models (
     -- Model details
     algorithm VARCHAR(100), -- 'RandomForest', 'IsolationForest', 'XGBoost', 'DeepLearning'
     framework VARCHAR(50), -- 'scikit-learn', 'tensorflow', 'pytorch'
+    feature_importance JSONB,
+    hyperparameters JSONB,
+    training_dataset_size INTEGER,
     
     -- Performance metrics
     accuracy DECIMAL(5,4), -- 0.9475 (94.75%)
