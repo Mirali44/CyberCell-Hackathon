@@ -13,3 +13,574 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+// ============================================================================
+// CORE SECURITY TABLES
+// ============================================================================
+
+model Alert {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  alertNumber          String    @unique @map("alert_number") @db.VarChar(50)
+  alertType            String    @map("alert_type") @db.VarChar(100)
+  title                String    @db.VarChar(255)
+  description          String?
+  severity             String    @db.VarChar(20)
+  confidenceScore      Int?      @map("confidence_score")
+  status               String    @default("active") @db.VarChar(50)
+  customerAffected     String?   @map("customer_affected") @db.VarChar(255)
+  location             String?   @db.VarChar(255)
+  sourceIp             String?   @map("source_ip") @db.Inet
+  destIp               String?   @map("dest_ip") @db.Inet
+  phoneNumbers         String[]  @map("phone_numbers")
+  cellTowerIds         String[]  @map("cell_tower_ids")
+  simCards             Int?      @map("sim_cards")
+  attackVector         String?   @map("attack_vector") @db.VarChar(100)
+  trafficVolume        String?   @map("traffic_volume") @db.VarChar(50)
+  callsPerHour         Int?      @map("calls_per_hour")
+  avgCallDuration      Int?      @map("avg_call_duration")
+  internationalRatio   Int?      @map("international_ratio")
+  affectedUsers        Int?      @map("affected_users")
+  revenueAtRisk        Decimal?  @map("revenue_at_risk") @db.Decimal(12, 2)
+  serviceImpact        String?   @map("service_impact") @db.VarChar(100)
+  downtimeMinutes      Int?      @map("downtime_minutes")
+  detectionTime        DateTime  @default(now()) @map("detection_time") @db.Timestamptz(6)
+  firstSeen            DateTime? @map("first_seen") @db.Timestamptz(6)
+  lastSeen             DateTime? @map("last_seen") @db.Timestamptz(6)
+  durationMinutes      Int?      @map("duration_minutes")
+  assignedTo           String?   @map("assigned_to") @db.VarChar(255)
+  assignedTeam         String?   @map("assigned_team") @db.VarChar(100)
+  aiAnalysis           Json?     @map("ai_analysis") @db.JsonB
+  correlationData      Json?     @map("correlation_data") @db.JsonB
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  investigationAlerts  InvestigationAlert[]
+  alertCorrelations    AlertCorrelation[]
+  fraudTimelines       FraudTimeline[]
+  modelPredictions     ModelPrediction[]
+
+  @@map("alerts")
+}
+
+model Investigation {
+  id                      String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  investigationId         String    @unique @map("investigation_id") @db.VarChar(50)
+  title                   String    @db.VarChar(255)
+  description             String?
+  campaignId              String?   @map("campaign_id") @db.VarChar(50)
+  threatActor             String?   @map("threat_actor") @db.VarChar(255)
+  attackStyle             String?   @map("attack_style") @db.VarChar(100)
+  confidenceLevel         Int?      @map("confidence_level")
+  status                  String    @default("active") @db.VarChar(50)
+  priority                String    @db.VarChar(20)
+  correlationConfidence   Int?      @map("correlation_confidence")
+  timeSpanMinutes         Int?      @map("time_span_minutes")
+  majorAlertsCount        Int?      @map("major_alerts_count")
+  indicatorsCount         Int?      @map("indicators_count")
+  geographicCorrelation   Json?     @map("geographic_correlation") @db.JsonB
+  temporalCorrelation     Json?     @map("temporal_correlation") @db.JsonB
+  technicalCorrelation    Json?     @map("technical_correlation") @db.JsonB
+  behavioralCorrelation   Json?     @map("behavioral_correlation") @db.JsonB
+  evidenceCollected       Json?     @map("evidence_collected") @db.JsonB
+  analystNotes            String?   @map("analyst_notes")
+  estimatedRevenueLoss    Decimal?  @map("estimated_revenue_loss") @db.Decimal(12, 2)
+  leadAnalyst             String?   @map("lead_analyst") @db.VarChar(255)
+  createdBy               String?   @map("created_by") @db.VarChar(255)
+  assignedTeam            String?   @map("assigned_team") @db.VarChar(100)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // Relations
+  investigationAlerts     InvestigationAlert[]
+
+  @@map("investigations")
+}
+
+model InvestigationAlert {
+  investigationId   String   @map("investigation_id") @db.Uuid
+  alertId           String   @map("alert_id") @db.Uuid
+  relationshipType  String?  @map("relationship_type") @db.VarChar(50)
+  addedAt           DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+
+  // Relations
+  investigation     Investigation @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+  alert             Alert         @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@id([investigationId, alertId])
+  @@map("investigation_alerts")
+}
+
+model Correlation {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  correlationId        String    @unique @map("correlation_id") @db.VarChar(50)
+  correlationType      String    @map("correlation_type") @db.VarChar(50)
+  confidenceScore      Int?      @map("confidence_score")
+  correlationStrength  String?   @map("correlation_strength") @db.VarChar(20)
+  description          String?
+  matchPercentage      Int?      @map("match_percentage")
+  geographicData       Json?     @map("geographic_data") @db.JsonB
+  timeWindowMinutes    Int?      @map("time_window_minutes")
+  sequenceDetected     Boolean   @default(false) @map("sequence_detected")
+  similarTtps          Boolean   @default(false) @map("similar_ttps")
+  attackCoordination   Boolean   @default(false) @map("attack_coordination")
+  status               String    @default("active") @db.VarChar(50)
+  verifiedBy           String?   @map("verified_by") @db.VarChar(255)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  alertCorrelations    AlertCorrelation[]
+
+  @@map("correlations")
+}
+
+model AlertCorrelation {
+  correlationId        String   @map("correlation_id") @db.Uuid
+  alertId              String   @map("alert_id") @db.Uuid
+  correlationStrength  Decimal? @map("correlation_strength") @db.Decimal(3, 2)
+  addedAt              DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+
+  // Relations
+  correlation          Correlation @relation(fields: [correlationId], references: [id], onDelete: Cascade)
+  alert                Alert       @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@id([correlationId, alertId])
+  @@map("alert_correlations")
+}
+
+// ============================================================================
+// THREAT INTELLIGENCE & REPORTING
+// ============================================================================
+
+model ThreatCampaign {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  campaignId           String    @unique @map("campaign_id") @db.VarChar(50)
+  campaignName         String?   @map("campaign_name") @db.VarChar(255)
+  threatActor          String?   @map("threat_actor") @db.VarChar(255)
+  totalIncidents       Int?      @map("total_incidents")
+  totalRevenueImpact   Decimal?  @map("total_revenue_impact") @db.Decimal(12, 2)
+  durationHours        Int?      @map("duration_hours")
+  affectedCustomers    Int?      @map("affected_customers")
+  status               String    @default("active") @db.VarChar(50)
+  firstDetected        DateTime? @map("first_detected") @db.Timestamptz(6)
+  lastActivity         DateTime? @map("last_activity") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("threat_campaigns")
+}
+
+model SystemMetric {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  metricType      String   @map("metric_type") @db.VarChar(100)
+  metricName      String?  @map("metric_name") @db.VarChar(255)
+  metricValue     Decimal? @map("metric_value") @db.Decimal(12, 2)
+  metricUnit      String?  @map("metric_unit") @db.VarChar(50)
+  change24h       Decimal? @map("change_24h") @db.Decimal(10, 2)
+  changeDirection String?  @map("change_direction") @db.VarChar(10)
+  changePeriod    String?  @map("change_period") @db.VarChar(20)
+  statusColor     String?  @map("status_color") @db.VarChar(20)
+  isCritical      Boolean  @default(false) @map("is_critical")
+  recordedAt      DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  @@map("system_metrics")
+}
+
+model NetworkMetric {
+  id                        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  currentTrafficGbps        Decimal? @map("current_traffic_gbps") @db.Decimal(8, 2)
+  normalTrafficMbps         Int?     @map("normal_traffic_mbps")
+  trafficSpikeDetected      Boolean  @default(false) @map("traffic_spike_detected")
+  networkHealthPercentage   Int?     @map("network_health_percentage")
+  systemsOperationalCount   Int?     @map("systems_operational_count")
+  totalSystemsCount         Int?     @map("total_systems_count")
+  slaStatusPercentage       Decimal? @map("sla_status_percentage") @db.Decimal(5, 2)
+  serviceAvailability       Decimal? @map("service_availability") @db.Decimal(5, 2)
+  responseTimeMs            Int?     @map("response_time_ms")
+  recordedAt                DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+
+  @@map("network_metrics")
+}
+
+// ============================================================================
+// FRAUD-SPECIFIC TABLES
+// ============================================================================
+
+model FraudStatistic {
+  id                          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  fraudType                   String   @map("fraud_type") @db.VarChar(100)
+  activeAlerts                Int      @default(0) @map("active_alerts")
+  investigatingCount          Int      @default(0) @map("investigating_count")
+  resolvedCount               Int      @default(0) @map("resolved_count")
+  revenueProtected            Decimal? @map("revenue_protected") @db.Decimal(12, 2)
+  fraudPreventedCount         Int?     @map("fraud_prevented_count")
+  detectionRatePercentage     Decimal? @map("detection_rate_percentage") @db.Decimal(5, 2)
+  falsePositiveRatePercentage Decimal? @map("false_positive_rate_percentage") @db.Decimal(5, 2)
+  trendDirection              String?  @map("trend_direction") @db.VarChar(10)
+  trendPercentage             Int?     @map("trend_percentage")
+  trendPeriod                 String?  @map("trend_period") @db.VarChar(20)
+  lastUpdated                 DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+
+  @@map("fraud_statistics")
+}
+
+model SecurityEvent {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventType     String   @map("event_type") @db.VarChar(100)
+  activeCount   Int      @default(0) @map("active_count")
+  totalIncidents Int?    @map("total_incidents")
+  criticalCount Int      @default(0) @map("critical_count")
+  highCount     Int      @default(0) @map("high_count")
+  mediumCount   Int      @default(0) @map("medium_count")
+  lowCount      Int      @default(0) @map("low_count")
+  lastUpdated   DateTime @default(now()) @map("last_updated") @db.Timestamptz(6)
+
+  @@map("security_events")
+}
+
+// ============================================================================
+// SYSTEM ADMINISTRATION
+// ============================================================================
+
+model SystemComponent {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  componentName     String   @map("component_name") @db.VarChar(255)
+  componentType     String?  @map("component_type") @db.VarChar(100)
+  status            String   @db.VarChar(50)
+  uptimePercentage  Decimal? @map("uptime_percentage") @db.Decimal(5, 2)
+  lastHealthCheck   DateTime? @map("last_health_check") @db.Timestamptz(6)
+  responseTimeMs    Int?     @map("response_time_ms")
+  errorCount24h     Int?     @map("error_count_24h")
+  isEnabled         Boolean  @default(true) @map("is_enabled")
+  configuration     Json?    @db.JsonB
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("system_components")
+}
+
+model SystemSetting {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  settingCategory String?  @map("setting_category") @db.VarChar(100)
+  settingName     String?  @map("setting_name") @db.VarChar(255)
+  settingValue    String?  @map("setting_value")
+  settingType     String?  @map("setting_type") @db.VarChar(50)
+  description     String?
+  isEnabled       Boolean  @default(true) @map("is_enabled")
+  updatedBy       String?  @map("updated_by") @db.VarChar(255)
+  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("system_settings")
+}
+
+// ============================================================================
+// REAL-TIME DATA TABLES
+// ============================================================================
+
+model FraudTimeline {
+  id               String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  eventTime        DateTime @map("event_time") @db.Time(6)
+  eventType        String?  @map("event_type") @db.VarChar(100)
+  eventDescription String?  @map("event_description") @db.VarChar(255)
+  alertId          String?  @map("alert_id") @db.Uuid
+  hasWarning       Boolean  @default(false) @map("has_warning")
+  isCorrelation    Boolean  @default(false) @map("is_correlation")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  alert            Alert?   @relation(fields: [alertId], references: [id])
+
+  @@map("fraud_timeline")
+}
+
+// ============================================================================
+// ML MODELS & PREDICTIONS TABLES
+// ============================================================================
+
+model MlModel {
+  id                   String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelName            String    @map("model_name") @db.VarChar(255)
+  modelType            String    @map("model_type") @db.VarChar(100)
+  modelVersion         String    @map("model_version") @db.VarChar(50)
+  algorithm            String?   @db.VarChar(100)
+  framework            String?   @db.VarChar(50)
+  featureImportance    Json?     @map("feature_importance") @db.JsonB
+  hyperparameters      Json?     @db.JsonB
+  trainingDatasetSize  Int?      @map("training_dataset_size")
+  accuracy             Decimal?  @db.Decimal(5, 4)
+  precisionScore       Decimal?  @map("precision_score") @db.Decimal(5, 4)
+  recall               Decimal?  @db.Decimal(5, 4)
+  f1Score              Decimal?  @map("f1_score") @db.Decimal(5, 4)
+  falsePositiveRate    Decimal?  @map("false_positive_rate") @db.Decimal(5, 4)
+  modelPath            String?   @map("model_path")
+  modelConfig          Json?     @map("model_config") @db.JsonB
+  featureNames         String[]  @map("feature_names")
+  isActive             Boolean   @default(false) @map("is_active")
+  deploymentStage      String?   @map("deployment_stage") @db.VarChar(50)
+  confidenceThreshold  Decimal?  @map("confidence_threshold") @db.Decimal(5, 4)
+  createdBy            String?   @map("created_by") @db.VarChar(255)
+  trainedOn            DateTime? @map("trained_on") @db.Timestamptz(6)
+  deployedAt           DateTime? @map("deployed_at") @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  // Relations
+  modelPredictions     ModelPrediction[]
+  modelPerformance     ModelPerformance[]
+
+  @@map("ml_models")
+}
+
+model ModelPrediction {
+  id                     String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelId                String?  @map("model_id") @db.Uuid
+  predictionType         String   @map("prediction_type") @db.VarChar(100)
+  confidenceScore        Decimal  @map("confidence_score") @db.Decimal(5, 4)
+  predictionResult       String?  @map("prediction_result") @db.VarChar(50)
+  riskLevel              String?  @map("risk_level") @db.VarChar(20)
+  inputFeatures          Json?    @map("input_features") @db.JsonB
+  featureImportance      Json?    @map("feature_importance") @db.JsonB
+  predictionExplanation  Json?    @map("prediction_explanation") @db.JsonB
+  recommendedActions     String[] @map("recommended_actions")
+  alertId                String?  @map("alert_id") @db.Uuid
+  correlationId          String?  @map("correlation_id")
+  dataSource             String?  @map("data_source") @db.VarChar(100)
+  sourceRecordId         String?  @map("source_record_id")
+  predictedAt            DateTime @default(now()) @map("predicted_at") @db.Timestamptz(6)
+  processingTimeMs       Int?     @map("processing_time_ms")
+
+  // Relations
+  model                  MlModel? @relation(fields: [modelId], references: [id])
+  alert                  Alert?   @relation(fields: [alertId], references: [id])
+
+  @@map("model_predictions")
+}
+
+model FeatureStore {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  featureGroup         String?  @map("feature_group") @db.VarChar(100)
+  featureName          String?  @map("feature_name") @db.VarChar(255)
+  entityId             String   @map("entity_id")
+  entityType           String?  @map("entity_type") @db.VarChar(50)
+  featureValue         Decimal? @map("feature_value") @db.Decimal(15, 6)
+  featureValueText     String?  @map("feature_value_text")
+  featureType          String?  @map("feature_type") @db.VarChar(50)
+  computationMethod    String?  @map("computation_method") @db.VarChar(100)
+  timeWindowMinutes    Int?     @map("time_window_minutes")
+  confidence           Decimal? @db.Decimal(5, 4)
+  isAnomalous          Boolean  @default(false) @map("is_anomalous")
+  featureTimestamp     DateTime? @map("feature_timestamp") @db.Timestamptz(6)
+  computedAt           DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+  expiresAt            DateTime? @map("expires_at") @db.Timestamptz(6)
+
+  @@map("feature_store")
+}
+
+model TrainingExperiment {
+  id                          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  experimentName              String?   @map("experiment_name") @db.VarChar(255)
+  modelType                   String?   @map("model_type") @db.VarChar(100)
+  algorithmConfig             Json?     @map("algorithm_config") @db.JsonB
+  trainingDatasetPath         String?   @map("training_dataset_path")
+  validationDatasetPath       String?   @map("validation_dataset_path")
+  trainingAccuracy            Decimal?  @map("training_accuracy") @db.Decimal(5, 4)
+  validationAccuracy          Decimal?  @map("validation_accuracy") @db.Decimal(5, 4)
+  crossValidationScores       Decimal[] @map("cross_validation_scores") @db.Decimal(5, 4)
+  classPerformance            Json?     @map("class_performance") @db.JsonB
+  confusionMatrix             Json?     @map("confusion_matrix") @db.JsonB
+  featureImportance           Json?     @map("feature_importance") @db.JsonB
+  trainingDurationMinutes     Int?      @map("training_duration_minutes")
+  dataPointsCount             Int?      @map("data_points_count")
+  featureCount                Int?      @map("feature_count")
+  mlflowRunId                 String?   @map("mlflow_run_id") @db.VarChar(255)
+  experimentStatus            String?   @map("experiment_status") @db.VarChar(50)
+  modelSavedPath              String?   @map("model_saved_path")
+  isPromotedToProduction      Boolean   @default(false) @map("is_promoted_to_production")
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("training_experiments")
+}
+
+model AnomalyScore {
+  id                    String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entityId              String   @map("entity_id")
+  entityType            String?  @map("entity_type") @db.VarChar(50)
+  anomalyType           String?  @map("anomaly_type") @db.VarChar(100)
+  anomalyScore          Decimal? @map("anomaly_score") @db.Decimal(5, 4)
+  baselineScore         Decimal? @map("baseline_score") @db.Decimal(5, 4)
+  deviationMagnitude    Decimal? @map("deviation_magnitude") @db.Decimal(8, 4)
+  timePeriod            String?  @map("time_period") @db.VarChar(50)
+  contributingFactors   String[] @map("contributing_factors")
+  riskLevel             String?  @map("risk_level") @db.VarChar(20)
+  requiresInvestigation Boolean  @default(false) @map("requires_investigation")
+  modelVersion          String?  @map("model_version") @db.VarChar(50)
+  computedAt            DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  @@map("anomaly_scores")
+}
+
+model CorrelationPrediction {
+  id                     String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  primaryAlertId         String?  @map("primary_alert_id") @db.Uuid
+  relatedAlertId         String?  @map("related_alert_id") @db.Uuid
+  correlationType        String?  @map("correlation_type") @db.VarChar(50)
+  correlationConfidence  Decimal? @map("correlation_confidence") @db.Decimal(5, 4)
+  correlationStrength    String?  @map("correlation_strength") @db.VarChar(20)
+  correlationEvidence    Json?    @map("correlation_evidence") @db.JsonB
+  correlationFactors     String[] @map("correlation_factors")
+  geographicDistanceKm   Decimal? @map("geographic_distance_km") @db.Decimal(8, 2)
+  locationConfidence     Decimal? @map("location_confidence") @db.Decimal(5, 4)
+  timeDifferenceMinutes  Int?     @map("time_difference_minutes")
+  sequenceProbability    Decimal? @map("sequence_probability") @db.Decimal(5, 4)
+  modelVersion           String?  @map("model_version") @db.VarChar(50)
+  predictionExplanation  String?  @map("prediction_explanation")
+  predictedAt            DateTime @default(now()) @map("predicted_at") @db.Timestamptz(6)
+
+  @@map("correlation_predictions")
+}
+
+model ModelPerformance {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  modelId              String?  @map("model_id") @db.Uuid
+  evaluationPeriod     String?  @map("evaluation_period") @db.VarChar(50)
+  periodStart          DateTime? @map("period_start") @db.Timestamptz(6)
+  periodEnd            DateTime? @map("period_end") @db.Timestamptz(6)
+  accuracy             Decimal? @db.Decimal(5, 4)
+  precisionScore       Decimal? @map("precision_score") @db.Decimal(5, 4)
+  recall               Decimal? @db.Decimal(5, 4)
+  f1Score              Decimal? @map("f1_score") @db.Decimal(5, 4)
+  falsePositiveRate    Decimal? @map("false_positive_rate") @db.Decimal(5, 4)
+  falseNegativeRate    Decimal? @map("false_negative_rate") @db.Decimal(5, 4)
+  predictionsCount     Int?     @map("predictions_count")
+  truePositives        Int?     @map("true_positives")
+  falsePositives       Int?     @map("false_positives")
+  trueNegatives        Int?     @map("true_negatives")
+  falseNegatives       Int?     @map("false_negatives")
+  modelDriftScore      Decimal? @map("model_drift_score") @db.Decimal(5, 4)
+  dataDriftScore       Decimal? @map("data_drift_score") @db.Decimal(5, 4)
+  requiresRetraining   Boolean  @default(false) @map("requires_retraining")
+  alertsGenerated      Int?     @map("alerts_generated")
+  investigationsTriggered Int?  @map("investigations_triggered")
+  revenueProtected     Decimal? @map("revenue_protected") @db.Decimal(12, 2)
+  evaluatedAt          DateTime @default(now()) @map("evaluated_at") @db.Timestamptz(6)
+
+  // Relations
+  model                MlModel? @relation(fields: [modelId], references: [id])
+
+  @@map("model_performance")
+}
+
+model DetectionPattern {
+  id                   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  patternName          String?  @map("pattern_name") @db.VarChar(255)
+  patternType          String?  @map("pattern_type") @db.VarChar(100)
+  patternCategory      String?  @map("pattern_category") @db.VarChar(100)
+  patternDescription   String?  @map("pattern_description")
+  patternIndicators    Json?    @map("pattern_indicators") @db.JsonB
+  confidenceThreshold  Decimal? @map("confidence_threshold") @db.Decimal(5, 4)
+  geographicIndicators Json?    @map("geographic_indicators") @db.JsonB
+  typicalLocations     String[] @map("typical_locations")
+  behavioralSignatures Json?    @map("behavioral_signatures") @db.JsonB
+  typicalDurationMinutes Int?   @map("typical_duration_minutes")
+  threatLevel          String?  @map("threat_level") @db.VarChar(20)
+  typicalRevenueImpact Decimal? @map("typical_revenue_impact") @db.Decimal(12, 2)
+  timesDetected        Int      @default(0) @map("times_detected")
+  lastDetected         DateTime? @map("last_detected") @db.Timestamptz(6)
+  detectionAccuracy    Decimal? @map("detection_accuracy") @db.Decimal(5, 4)
+  isActive             Boolean  @default(true) @map("is_active")
+  patternVersion       String?  @map("pattern_version") @db.VarChar(50)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("detection_patterns")
+}
+
+// ============================================================================
+// TIMESCALEDB TIME-SERIES TABLES
+// ============================================================================
+
+model TelecomEvent {
+  time              DateTime @db.Timestamptz(6)
+  eventType         String   @map("event_type")
+  eventSubtype      String?  @map("event_subtype")
+  phoneNumber       String?  @map("phone_number")
+  imsi              String?
+  imei              String?
+  cellId            String?  @map("cell_id")
+  sourceIp          String?  @map("source_ip") @db.Inet
+  destIp            String?  @map("dest_ip") @db.Inet
+  bytesUp           BigInt?  @map("bytes_up")
+  bytesDown         BigInt?  @map("bytes_down")
+  callDuration      Int?     @map("call_duration")
+  callDestination   String?  @map("call_destination")
+  callType          String?  @map("call_type")
+  latitude          Decimal? @db.Decimal(10, 8)
+  longitude         Decimal? @db.Decimal(11, 8)
+  locationAccuracy  Int?     @map("location_accuracy")
+  signalStrength    Int?     @map("signal_strength")
+  dataQuality       Decimal? @map("data_quality") @db.Decimal(3, 2)
+  eventData         Json     @map("event_data") @db.JsonB
+  sourceSystem      String?  @map("source_system")
+  processed         Boolean  @default(false)
+
+  @@map("telecom_events")
+  @@ignore
+}
+
+model MlMetricsTimeseries {
+  time                    DateTime @db.Timestamptz(6)
+  modelName               String   @map("model_name")
+  modelVersion            String?  @map("model_version")
+  accuracy                Decimal? @db.Decimal(5, 4)
+  precisionScore          Decimal? @map("precision_score") @db.Decimal(5, 4)
+  recall                  Decimal? @db.Decimal(5, 4)
+  f1Score                 Decimal? @map("f1_score") @db.Decimal(5, 4)
+  falsePositiveRate       Decimal? @map("false_positive_rate") @db.Decimal(5, 4)
+  predictionsCount        Int?     @map("predictions_count")
+  processingTimeMs        Int?     @map("processing_time_ms")
+  alertsGenerated         Int?     @map("alerts_generated")
+  revenueProtected        Decimal? @map("revenue_protected") @db.Decimal(12, 2)
+  driftScore              Decimal? @map("drift_score") @db.Decimal(5, 4)
+  confidenceDistribution  Json?    @map("confidence_distribution") @db.JsonB
+  metricData              Json?    @map("metric_data") @db.JsonB
+
+  @@map("ml_metrics_timeseries")
+  @@ignore // Managed by TimescaleDB hypertable
+}
+
+model NetworkTrafficMetric {
+  time              DateTime @db.Timestamptz(6)
+  interfaceName     String?  @map("interface_name")
+  bytesIn           BigInt?  @map("bytes_in")
+  bytesOut          BigInt?  @map("bytes_out")
+  packetsIn         BigInt?  @map("packets_in")
+  packetsOut        BigInt?  @map("packets_out")
+  latencyMs         Decimal? @map("latency_ms") @db.Decimal(8, 2)
+  jitterMs          Decimal? @map("jitter_ms") @db.Decimal(8, 2)
+  packetLossRate    Decimal? @map("packet_loss_rate") @db.Decimal(5, 4)
+  isAnomalous       Boolean  @default(false) @map("is_anomalous")
+  anomalyScore      Decimal? @map("anomaly_score") @db.Decimal(5, 4)
+  baselineBytes     BigInt?  @map("baseline_bytes")
+  trafficData       Json?    @map("traffic_data") @db.JsonB
+
+  @@map("network_traffic_metrics")
+  @@ignore // Managed by TimescaleDB hypertable
+}
+
+model FraudDetectionEvent {
+  time            DateTime @db.Timestamptz(6)
+  detectionType   String?  @map("detection_type")
+  confidenceScore Decimal? @map("confidence_score") @db.Decimal(5, 4)
+  riskLevel       String?  @map("risk_level")
+  alertGenerated  Boolean? @map("alert_generated")
+  entityType      String?  @map("entity_type")
+  entityId        String?  @map("entity_id")
+  geographicArea  String?  @map("geographic_area")
+  revenueImpact   Decimal? @map("revenue_impact") @db.Decimal(12, 2)
+  customerTier    String?  @map("customer_tier")
+  detectionData   Json?    @map("detection_data") @db.JsonB
+  featuresUsed    Json?    @map("features_used") @db.JsonB
+  modelVersion    String?  @map("model_version")
+  processingNode  String?  @map("processing_node")
+
+  @@map("fraud_detection_events")
+  @@ignore // Managed by TimescaleDB hypertable
+}
