@@ -18,10 +18,13 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prisma:generate": "dotenv -e ../../.env -- prisma generate",
-    "prisma:studio": "dotenv -e ../../.env -- prisma studio",
-    "prisma:push": "dotenv -e ../../.env -- prisma db push",
-    "prisma:pull": "dotenv -e ../../.env -- prisma db pull"
+    "prisma:generate": "npm run prisma:generate:main && npm run prisma:generate:timescale",
+    "prisma:generate:main": "dotenv -e ../../.env -- prisma generate --schema=./src/prisma/schema.prisma",
+    "prisma:generate:timescale": "dotenv -e ../../.env -- prisma generate --schema=./src/prisma-timescale/schema.prisma",
+    "prisma:pull:main": "dotenv -e ../../.env -- prisma db pull --schema=./src/prisma/schema.prisma",
+    "prisma:pull:timescale": "dotenv -e ../../.env -- prisma db pull --schema=./src/prisma-timescale/schema.prisma",
+    "prisma:studio:main": "dotenv -e ../../.env -- prisma studio --schema=./src/prisma/schema.prisma",
+    "prisma:studio:timescale": "dotenv -e ../../.env -- prisma studio --schema=./src/prisma-timescale/schema.prisma"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

@@ -1,0 +1,101 @@
+generator timescaleClient {
+  provider = "prisma-client-js"
+  output   = "../../generated/timescale-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("TIMESCALE_URL")
+}
+
+// ============================================================================
+// TIMESCALEDB TIME-SERIES TABLES
+// ============================================================================
+
+model TelecomEvent {
+  time              DateTime @db.Timestamptz(6)
+  eventType         String   @map("event_type")
+  eventSubtype      String?  @map("event_subtype")
+  phoneNumber       String?  @map("phone_number")
+  imsi              String?
+  imei              String?
+  cellId            String?  @map("cell_id")
+  sourceIp          String?  @map("source_ip") @db.Inet
+  destIp            String?  @map("dest_ip") @db.Inet
+  bytesUp           BigInt?  @map("bytes_up")
+  bytesDown         BigInt?  @map("bytes_down")
+  callDuration      Int?     @map("call_duration")
+  callDestination   String?  @map("call_destination")
+  callType          String?  @map("call_type")
+  latitude          Decimal? @db.Decimal(10, 8)
+  longitude         Decimal? @db.Decimal(11, 8)
+  locationAccuracy  Int?     @map("location_accuracy")
+  signalStrength    Int?     @map("signal_strength")
+  dataQuality       Decimal? @map("data_quality") @db.Decimal(3, 2)
+  eventData         Json     @map("event_data") @db.JsonB
+  sourceSystem      String?  @map("source_system")
+  processed         Boolean  @default(false)
+
+  @@map("telecom_events")
+  @@ignore
+}
+
+model MlMetricsTimeseries {
+  time                    DateTime @db.Timestamptz(6)
+  modelName               String   @map("model_name")
+  modelVersion            String?  @map("model_version")
+  accuracy                Decimal? @db.Decimal(5, 4)
+  precisionScore          Decimal? @map("precision_score") @db.Decimal(5, 4)
+  recall                  Decimal? @db.Decimal(5, 4)
+  f1Score                 Decimal? @map("f1_score") @db.Decimal(5, 4)
+  falsePositiveRate       Decimal? @map("false_positive_rate") @db.Decimal(5, 4)
+  predictionsCount        Int?     @map("predictions_count")
+  processingTimeMs        Int?     @map("processing_time_ms")
+  alertsGenerated         Int?     @map("alerts_generated")
+  revenueProtected        Decimal? @map("revenue_protected") @db.Decimal(12, 2)
+  driftScore              Decimal? @map("drift_score") @db.Decimal(5, 4)
+  confidenceDistribution  Json?    @map("confidence_distribution") @db.JsonB
+  metricData              Json?    @map("metric_data") @db.JsonB
+
+  @@map("ml_metrics_timeseries")
+  @@ignore // Managed by TimescaleDB hypertable
+}
+
+model NetworkTrafficMetric {
+  time              DateTime @db.Timestamptz(6)
+  interfaceName     String?  @map("interface_name")
+  bytesIn           BigInt?  @map("bytes_in")
+  bytesOut          BigInt?  @map("bytes_out")
+  packetsIn         BigInt?  @map("packets_in")
+  packetsOut        BigInt?  @map("packets_out")
+  latencyMs         Decimal? @map("latency_ms") @db.Decimal(8, 2)
+  jitterMs          Decimal? @map("jitter_ms") @db.Decimal(8, 2)
+  packetLossRate    Decimal? @map("packet_loss_rate") @db.Decimal(5, 4)
+  isAnomalous       Boolean  @default(false) @map("is_anomalous")
+  anomalyScore      Decimal? @map("anomaly_score") @db.Decimal(5, 4)
+  baselineBytes     BigInt?  @map("baseline_bytes")
+  trafficData       Json?    @map("traffic_data") @db.JsonB
+
+  @@map("network_traffic_metrics")
+  @@ignore // Managed by TimescaleDB hypertable
+}
+
+model FraudDetectionEvent {
+  time            DateTime @db.Timestamptz(6)
+  detectionType   String?  @map("detection_type")
+  confidenceScore Decimal? @map("confidence_score") @db.Decimal(5, 4)
+  riskLevel       String?  @map("risk_level")
+  alertGenerated  Boolean? @map("alert_generated")
+  entityType      String?  @map("entity_type")
+  entityId        String?  @map("entity_id")
+  geographicArea  String?  @map("geographic_area")
+  revenueImpact   Decimal? @map("revenue_impact") @db.Decimal(12, 2)
+  customerTier    String?  @map("customer_tier")
+  detectionData   Json?    @map("detection_data") @db.JsonB
+  featuresUsed    Json?    @map("features_used") @db.JsonB
+  modelVersion    String?  @map("model_version")
+  processingNode  String?  @map("processing_node")
+
+  @@map("fraud_detection_events")
+  @@ignore // Managed by TimescaleDB hypertable
+}
