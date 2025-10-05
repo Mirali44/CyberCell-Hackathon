@@ -8,7 +8,7 @@ import { PrismaModule } from './prisma/prisma.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: join(__dirname, '../../.env'),
+      envFilePath: join(__dirname, '../../../.env'),
       isGlobal: true,
     }),
     PrismaModule,
